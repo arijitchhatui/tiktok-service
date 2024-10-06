@@ -10,4 +10,5 @@ export const auth = (req: Request, res: Response, next: NextFunction) => {
   } catch {
     return res.status(401).json({ message: "Unauthorized" });
   }
+  next();
 };

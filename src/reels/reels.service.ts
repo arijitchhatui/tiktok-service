@@ -21,7 +21,7 @@ const saves = db.collection<SaveEntity>(Collections.SAVES);
 const shares = db.collection<ShareEntity>(Collections.SHARES);
 
 const getReelsByUserId = async (userId: ObjectId) => {
-  const result = await reels.find({ userId });
+  const result = await reels.find({ userId }).toArray();
   return result;
 };
 export const getReels = async (req: Request, res: Response) => {
@@ -52,17 +52,22 @@ export const createReels = async (req: Request, res: Response) => {
 };
 export const editReels = async (req: Request, res: Response) => {
   const userId = new ObjectId(req.user!.userId);
+  const reelsId = new ObjectId(req.params.id);
   const body = req.body as EditReelsInput;
-  await reels.updateOne({ _id: userId }, { $set: { caption: body.caption } });
+  await reels.updateOne(
+    { userId, _id: reelsId },
+    { $set: { caption: body.caption } }
+  );
   return res.status(200).json({ message: "ok" });
 };
 export const likeReel = async (req: Request, res: Response) => {
   const userId = new ObjectId(req.user!.userId);
   const reelsId = new ObjectId(req.params.id);
 
-  const liked = await reels.findOne({ userId, reelsId });
+  const liked = await likes.findOne({ userId, reelsId });
+  console.log(liked);
   if (liked) {
-    await reels.deleteOne({ userId, reelsId });
+    await likes.deleteOne({ userId, reelsId });
     const reel = await reels.findOneAndUpdate(
       { _id: reelsId },
       { $inc: { likeCount: -1 } },
@@ -70,6 +75,7 @@ export const likeReel = async (req: Request, res: Response) => {
     );
     return res.json({ reel, like: liked });
   }
+
   const like: WithId<LikesEntity> = {
     _id: new ObjectId(),
     userId,
@@ -79,11 +85,11 @@ export const likeReel = async (req: Request, res: Response) => {
   };
   await likes.insertOne(like);
   const reel = await reels.findOneAndUpdate(
-    { _id: userId },
+    { _id: reelsId },
     { $inc: { likeCount: 1 } },
     { returnDocument: "after" }
   );
-  return res.json({ reels, like: liked });
+  return res.json({ reel, like });
 };
 export const createComment = async (req: Request, res: Response) => {
   const userId = new ObjectId(req.user!.userId);
@@ -107,6 +113,11 @@ export const createComment = async (req: Request, res: Response) => {
   }
   return res.status(404).json("Reel not found");
 };
+
+export const getComment = async (req: Request, res: Response) => {
+  const userId = new ObjectId(req.user!.userId);
+  const reelsId = new ObjectId(req.params.id);
+};
 export const deleteComment = async (req: Request, res: Response) => {
   const userId = new ObjectId(req.user!.userId);
   const commentId = new ObjectId(req.params.id);
@@ -126,7 +137,7 @@ export const deleteComment = async (req: Request, res: Response) => {
 export const saveReel = async (req: Request, res: Response) => {
   const userId = new ObjectId(req.user!.userId);
   const reelsId = new ObjectId(req.params.id);
-  const save = await saves.insertOne({ userId, reelsId });
+  const save = await saves.findOne({ userId, reelsId });
   if (save) {
     await saves.deleteOne({ userId, reelsId });
     await reels.updateOne(
@@ -153,30 +164,32 @@ export const shareReel = async (req: Request, res: Response) => {
 
 export const getLikes = async (req: Request, res: Response) => {
   const reelsId = new ObjectId(req.params.id);
-  const liked = await likes.aggregate([
-    {
-      $match: {
-        reelsId,
+  const liked = await likes
+    .aggregate([
+      {
+        $match: {
+          reelsId,
+        },
       },
-    },
-    {
-      $lookup: {
-        from: Collections.PROFILES,
-        localField: "userId",
-        foreignField: "userId",
-        as: "user",
+      {
+        $lookup: {
+          from: Collections.PROFILES,
+          localField: "userId",
+          foreignField: "userId",
+          as: "user",
+        },
       },
-    },
-    {
-      $unwind: {
-        path: "$user",
+      {
+        $unwind: {
+          path: "$user",
+        },
       },
-    },
-    {
-      $replaceRoot: {
-        newRoot: "$user",
+      {
+        $replaceRoot: {
+          newRoot: "$user",
+        },
       },
-    },
-  ]);
-  return res.json(liked);
+    ])
+    .toArray();
+  return res.json({ liked });
 };
