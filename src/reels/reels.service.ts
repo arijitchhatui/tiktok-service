@@ -5,17 +5,20 @@ import { LikesEntity } from "../entities/likes.entity";
 import { ProfilesEntity } from "../entities/profiles.entity";
 import { ReelsEntity } from "../entities/reels.entity";
 import { SaveEntity } from "../entities/saves.entity";
+import { ShareEntity } from "../entities/shares.entity";
 import { db } from "../rdb/mongodb";
 import { Collections } from "../util/constants";
 import { CommentReelInput } from "./dto/comment-string.dto";
 import { CreateReelsInput } from "./dto/create-reels.dto";
 import { EditReelsInput } from "./dto/edit-reels.dto";
+import { ShareReelInput } from "./dto/share-reel.dto";
 
 const reels = db.collection<ReelsEntity>(Collections.REELS);
 const profiles = db.collection<ProfilesEntity>(Collections.PROFILES);
 const likes = db.collection<LikesEntity>(Collections.LIKES);
 const comments = db.collection<CommentsEntity>(Collections.COMMENTS);
 const saves = db.collection<SaveEntity>(Collections.SAVES);
+const shares = db.collection<ShareEntity>(Collections.SHARES);
 
 const getReelsByUserId = async (userId: ObjectId) => {
   const result = await reels.find({ userId });
@@ -137,3 +140,43 @@ export const saveReel = async (req: Request, res: Response) => {
   return res.json({ message: "ok" });
 };
 
+export const shareReel = async (req: Request, res: Response) => {
+  const body = req.body as ShareReelInput;
+  const sharingUserId = new ObjectId(req.user!.userId);
+  const sharedUserId = new ObjectId(body.sharedUserId);
+  const reelsId = new ObjectId(req.params.id);
+  await shares.insertOne({ sharedUserId, sharingUserId, reelsId });
+  await reels.updateOne({ _id: reelsId }, { $inc: { shareCount: 1 } });
+
+  return res.json({ message: "ok" });
+};
+
+export const getLikes = async (req: Request, res: Response) => {
+  const reelsId = new ObjectId(req.params.id);
+  const liked = await likes.aggregate([
+    {
+      $match: {
+        reelsId,
+      },
+    },
+    {
+      $lookup: {
+        from: Collections.PROFILES,
+        localField: "userId",
+        foreignField: "userId",
+        as: "user",
+      },
+    },
+    {
+      $unwind: {
+        path: "$user",
+      },
+    },
+    {
+      $replaceRoot: {
+        newRoot: "$user",
+      },
+    },
+  ]);
+  return res.json(liked);
+};
