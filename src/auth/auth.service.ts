@@ -50,15 +50,19 @@ export const signup = async (req: Request, res: Response) => {
     _id,
     email,
     password,
+    username,
     dateOfBirth: body.dateOfBirth,
     gender: body.gender,
     createdAt: new Date(),
+    updatedAt: new Date()
+
   });
   await profiles.insertOne({
     userId: _id,
     fullName: body.fullName,
     username,
     bio: "",
+    gender: body.gender,
     region: "",
     avatarURL: "",
     bannerURL: "",
@@ -76,8 +80,14 @@ export const signup = async (req: Request, res: Response) => {
 export const getAuthUser = async (req: Request, res: Response) => {
   const userId = new ObjectId(req.user!.userId);
 
-  const user = await users.findOne({
-    _id: userId,
-  });
-  return res.json(user);
+  const user = await users.findOne({ _id: userId });
+  if (!user) return res.status(404).json({ message: "User not found" });
+
+  const userProfile = await profiles.findOne({ userId });
+  if (!userProfile)
+    return res.status(404).json({ message: "Profile not found" });
+  const result = {
+    ...userProfile,
+  };
+  return res.status(200).json(result);
 };
