@@ -5,5 +5,6 @@ export const Collections = {
   LIKES: "likes",
   COMMENTS: "comments",
   SAVES: "saves",
-  SHARES: "shares"
+  SHARES: "shares",
+  FOLLOWERS: "followers",
 } as const;

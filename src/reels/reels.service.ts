@@ -114,9 +114,36 @@ export const createComment = async (req: Request, res: Response) => {
   return res.status(404).json("Reel not found");
 };
 
-export const getComment = async (req: Request, res: Response) => {
-  const userId = new ObjectId(req.user!.userId);
+export const getComments = async (req: Request, res: Response) => {
   const reelsId = new ObjectId(req.params.id);
+  const commented = await comments
+    .aggregate([
+      {
+        $match: {
+          reelsId,
+        },
+      },
+      {
+        $lookup: {
+          from: Collections.PROFILES,
+          localField: "userId",
+          foreignField: "userId",
+          as: "user",
+        },
+      },
+      {
+        $unwind: {
+          path: "$user",
+        },
+      },
+      {
+        $replaceRoot: {
+          newRoot: "$user",
+        },
+      },
+    ])
+    .toArray();
+  return res.json({ commented });
 };
 export const deleteComment = async (req: Request, res: Response) => {
   const userId = new ObjectId(req.user!.userId);

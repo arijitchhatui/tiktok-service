@@ -5,6 +5,7 @@ import {
   createReels,
   deleteComment,
   editReels,
+  getComments,
   getCreatorReels,
   getLikes,
   getReels,
@@ -26,6 +27,8 @@ router.patch("/reels/:id/edit", auth, editReels);
 router.put("/reels/:id/like", auth, likeReel);
 
 router.put("/reels/:id/create-comment", auth, createComment);
+
+router.get("/reels/:id/comments", auth, getComments);
 
 router.delete("/reels/:id/delete-comment", auth, deleteComment);
 
